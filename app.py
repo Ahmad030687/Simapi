@@ -1,38 +1,37 @@
 from flask import Flask, request, jsonify
-import requests
+import yt_dlp
 
 app = Flask(__name__)
 
-@app.route('/sim', methods=['GET'])
-def get_sim_data():
-    number = request.args.get('q')
-    if not number:
-        return jsonify({"status": "error", "message": "Number missing!"})
+# 🔑 آپ کی پرائیویٹ کی (Secret Key)
+RDX_SECRET = "ahmad_rdx_private_786"
 
-    # Number format fix (0 hatao)
-    if number.startswith("0"):
-        number = number[1:]
+@app.route('/download', methods=['GET'])
+def download():
+    # سیکیورٹی چیک
+    key = request.args.get('key')
+    if key != RDX_SECRET:
+        return jsonify({"error": "Unauthorized"}), 403
 
-    target_url = f"https://sim.f-a-k.workers.dev/?q={number}"
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json"
+    url = request.args.get('url')
+    media_type = request.args.get('type') # audio or video
+
+    ydl_opts = {
+        'format': 'bestaudio/best' if media_type == 'audio' else 'best',
+        'quiet': True,
+        'no_warnings': True,
     }
 
     try:
-        # Yahan hum request bhej rahe hain
-        response = requests.get(target_url, headers=headers, timeout=10)
-        data = response.json()
-        
-        # Apna custom format
-        return jsonify({
-            "status": "success",
-            "developer": "AHMAD RDX",
-            "result": data.get("data", [])
-        })
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return jsonify({
+                "status": "success",
+                "downloadUrl": info['url'],
+                "title": info.get('title', 'Music')
+            })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=10000)
